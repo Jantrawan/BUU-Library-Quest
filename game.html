@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>BUU Library Quest — ผจญภัยในหอสมุด</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Font: Chakra Petch -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,500;0,600;0,700;1,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="game-page relative w-screen h-screen overflow-hidden text-slate-800">
+
+  <!-- Main Game Canvas -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- ==================== TOP HUD (Visible during Gameplay) ==================== -->
+  <div id="hudOverlay" class="fixed inset-x-0 top-0 z-20 pointer-events-none px-2 sm:px-4 pt-2 sm:pt-3 flex flex-col gap-1.5">
+    <div class="w-full max-w-7xl mx-auto flex flex-wrap items-start justify-between gap-2">
+
+      <!-- Top-Left: Player Name, Stage Name & 5 Hearts -->
+      <div class="pointer-events-auto bg-white/90 backdrop-blur-md border-2 border-purple-300 shadow-lg rounded-2xl px-3 py-1.5 sm:px-4 sm:py-2 flex flex-col gap-1 max-w-[46%] sm:max-w-xs">
+        <div class="flex items-center gap-1.5 truncate">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-purple-600 shrink-0"></span>
+          <span id="hudPlayerName" class="font-bold text-xs sm:text-sm text-purple-900 truncate">Player</span>
+        </div>
+        <div id="hudStageName" class="text-[11px] sm:text-xs font-semibold text-purple-600 truncate">
+          OPAC Detective นักสืบค้นสารสนเทศ
+        </div>
+        <div id="hudHearts" class="flex items-center gap-0.5 sm:gap-1 mt-0.5" aria-label="Lives"></div>
+      </div>
+
+      <!-- Top-Center: Ruler Progress Bar + Compact Toast Banner -->
+      <div class="order-3 sm:order-2 w-full sm:w-auto sm:flex-1 max-w-md mx-auto flex flex-col items-center">
+        <div class="pointer-events-auto w-full bg-amber-50/95 backdrop-blur-md border-2 border-amber-400 shadow-md rounded-2xl px-3 py-1.5">
+          <div class="flex items-center justify-between text-[11px] sm:text-xs font-bold text-amber-900 mb-1">
+            <span class="flex items-center gap-1">📏 ระยะทาง</span>
+            <span id="hudQuestionProgress" class="bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-300">
+              📖 0/10
+            </span>
+          </div>
+          <!-- Ruler Bar -->
+          <div class="relative w-full h-4 bg-amber-200/80 rounded-lg border border-amber-500 overflow-hidden">
+            <div id="hudRulerFill" class="h-full bg-gradient-to-r from-purple-500 via-pink-400 to-amber-400 transition-all duration-150 rounded-r-md" style="width: 0%"></div>
+            <div class="absolute inset-0 flex justify-between px-1 pointer-events-none opacity-60">
+              <span class="w-px h-2 bg-amber-900"></span>
+              <span class="w-px h-3 bg-amber-900"></span>
+              <span class="w-px h-2 bg-amber-900"></span>
+              <span class="w-px h-3 bg-amber-900"></span>
+              <span class="w-px h-2 bg-amber-900"></span>
+              <span class="w-px h-3.5 bg-amber-900"></span>
+              <span class="w-px h-2 bg-amber-900"></span>
+              <span class="w-px h-3 bg-amber-900"></span>
+              <span class="w-px h-2 bg-amber-900"></span>
+              <span class="w-px h-3 bg-amber-900"></span>
+              <span class="w-px h-2 bg-amber-900"></span>
+            </div>
+            <div id="hudRulerMarker" class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-purple-700 border-2 border-white shadow transition-all duration-150" style="left: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Compact Top-Center Notification Toast -->
+        <div id="gameToast" class="hidden mt-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-bold shadow-lg border-2 transition-all duration-200 text-center max-w-[90vw] truncate"></div>
+      </div>
+
+      <!-- Top-Right: Timer, Star Score & Control Buttons -->
+      <div class="order-2 sm:order-3 pointer-events-auto bg-white/90 backdrop-blur-md border-2 border-purple-300 shadow-lg rounded-2xl px-2.5 py-1.5 sm:px-3.5 sm:py-2 flex items-center gap-2 sm:gap-3">
+        <!-- Timer -->
+        <div class="flex items-center gap-1 bg-sky-100 border border-sky-300 px-2 py-1 rounded-xl text-sky-900 font-bold text-xs sm:text-sm">
+          <span>⏱️</span>
+          <span id="hudTimer">00:00</span>
+        </div>
+
+        <!-- Star Score -->
+        <div class="flex items-center gap-1 bg-amber-100 border border-amber-400 px-2.5 py-1 rounded-xl text-amber-800 font-extrabold text-xs sm:text-sm shadow-inner">
+          <span class="text-sm sm:text-base">⭐</span>
+          <span id="hudStars">0</span>
+        </div>
+
+        <!-- Action Icon Buttons -->
+        <div class="flex items-center gap-1">
+          <button id="btnSoundToggle" title="เปิด/ปิดเสียง" class="btn-3d w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-100 hover:bg-purple-200 border border-purple-300 flex items-center justify-center text-sm sm:text-base shadow-sm">
+            🔊
+          </button>
+          <button id="btnPauseToggle" title="หยุดชั่วคราว / เล่นต่อ" class="btn-3d w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-300 flex items-center justify-center text-sm sm:text-base shadow-sm">
+            ⏸️
+          </button>
+          <button id="btnRestartGame" title="เริ่มด่านใหม่" class="btn-3d w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-pink-100 hover:bg-pink-200 border border-pink-300 flex items-center justify-center text-sm sm:text-base shadow-sm">
+            🔄
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== MOBILE / TOUCH CONTROLS ==================== -->
+  <div id="touchControls" class="hidden fixed inset-x-0 bottom-0 z-20 pointer-events-none px-4 pb-5 sm:pb-6 flex items-end justify-between">
+    <div class="pointer-events-auto flex items-center gap-3 sm:gap-4">
+      <button id="touchLeft" aria-label="เดินซ้าย" class="touch-btn w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-purple-900/55 border-2 border-purple-200/80 text-white text-2xl sm:text-3xl font-bold shadow-xl flex items-center justify-center">
+        ◀
+      </button>
+      <button id="touchRight" aria-label="เดินขวา" class="touch-btn w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-purple-900/55 border-2 border-purple-200/80 text-white text-2xl sm:text-3xl font-bold shadow-xl flex items-center justify-center">
+        ▶
+      </button>
+    </div>
+
+    <div class="pointer-events-auto">
+      <button id="touchJump" aria-label="กระโดด" class="touch-btn rounded-full bg-amber-400/80 border-4 border-white text-purple-950 text-2xl sm:text-3xl font-extrabold shadow-xl flex items-center justify-center" style="width: 4.5rem; height: 4.5rem;">
+        A
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== PAUSE MODAL ==================== -->
+  <div id="pauseModal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-purple-950/70 backdrop-blur-sm">
+    <div class="w-full max-w-sm bg-amber-50 border-4 border-purple-400 rounded-3xl p-6 text-center shadow-2xl animate-pop">
+      <div class="text-5xl mb-2">⏸️</div>
+      <h2 class="text-2xl font-extrabold text-purple-950 mb-1">หยุดเกมชั่วคราว</h2>
+      <p class="text-sm text-purple-700 mb-5">พักหายใจสักครู่ แล้วกลับมาลุยต่อกันเถอะ!</p>
+      <div class="flex flex-col gap-2.5">
+        <button id="btnResumeGame" class="btn-3d w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold border-b-4 border-emerald-800 shadow">
+          ▶️ เล่นต่อ (Resume)
+        </button>
+        <button id="btnPauseRestart" class="btn-3d w-full py-3 rounded-2xl bg-amber-400 text-purple-950 font-extrabold border-b-4 border-amber-600 shadow">
+          🔄 เริ่มด่านนี้ใหม่
+        </button>
+        <a href="index.html" class="btn-3d block w-full py-3 rounded-2xl bg-purple-200 text-purple-900 font-bold border-b-4 border-purple-400 shadow">
+          🏠 กลับหน้าหลัก
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== QUESTION QUIZ MODAL ==================== -->
+  <div id="quizModal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-5 bg-indigo-950/75 backdrop-blur-sm overflow-y-auto">
+    <div class="w-full max-w-2xl bg-gradient-to-b from-white via-purple-50 to-amber-50 border-4 border-purple-400 rounded-3xl p-5 sm:p-6 shadow-2xl my-auto animate-pop">
+      <div class="flex items-center justify-between gap-2 pb-3 border-b-2 border-purple-200">
+        <div class="flex items-center gap-2">
+          <span id="quizBadge" class="bg-purple-700 text-white text-xs sm:text-sm font-extrabold px-3 py-1 rounded-full">
+            📖 คำถามข้อที่ 1/10
+          </span>
+        </div>
+        <div class="flex items-center gap-1 bg-amber-100 border border-amber-400 px-3 py-1 rounded-full text-amber-800 font-extrabold text-sm">
+          <span>⭐</span>
+          <span id="quizStarReward">+10</span>
+        </div>
+      </div>
+
+      <div id="quizImageContainer" class="hidden mt-3 flex justify-center">
+        <img id="quizImage" src="" alt="ภาพประกอบคำถาม" class="max-h-44 rounded-2xl border-2 border-purple-200 shadow-md object-contain bg-white p-1" />
+      </div>
+
+      <div class="mt-4 bg-white border-2 border-purple-200 rounded-2xl p-4 shadow-sm">
+        <p id="quizQuestionText" class="text-base sm:text-lg font-bold text-purple-950 leading-relaxed"></p>
+      </div>
+
+      <div id="quizOptionsContainer" class="mt-4 grid grid-cols-1 gap-2.5"></div>
+
+      <div id="quizResultBox" class="hidden mt-4 rounded-2xl p-4 border-2">
+        <div class="flex items-center gap-2 mb-1">
+          <span id="quizResultIcon" class="text-2xl"></span>
+          <h3 id="quizResultTitle" class="text-base sm:text-lg font-extrabold"></h3>
+        </div>
+        <p id="quizExplanationText" class="text-xs sm:text-sm font-medium leading-relaxed"></p>
+        <div class="mt-3 flex justify-end">
+          <button id="btnQuizContinue" class="btn-3d px-6 py-2.5 rounded-2xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold border-b-4 border-purple-950 shadow">
+            ไปต่อกันเลย ➡️
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ANGRY OWL LIBRARIAN MODAL ==================== -->
+  <div id="angryOwlModal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-purple-950/75 backdrop-blur-sm">
+    <div class="w-full max-w-md bg-gradient-to-b from-amber-50 to-rose-50 border-4 border-rose-400 rounded-3xl p-6 text-center shadow-2xl animate-pop">
+      <div class="relative inline-block mb-2">
+        <div class="w-24 h-24 rounded-full bg-amber-200 border-4 border-rose-500 flex items-center justify-center text-5xl shadow-lg mx-auto">
+          🦉
+        </div>
+        <span class="absolute -top-1 -right-1 text-3xl">💢</span>
+      </div>
+      <h2 class="text-2xl font-extrabold text-rose-700 mb-2">บรรณารักษ์นกฮูกไม่อนุญาตให้ผ่าน!</h2>
+      <p id="angryOwlText" class="text-sm sm:text-base font-bold text-slate-800 bg-white/90 border border-rose-200 rounded-2xl p-3.5 mb-5">
+        ฮูก! คุณยังตอบคำถามในห้องสมุดไม่ครบทุกข้อเลยนะ กรุณาย้อนกลับไปเก็บหนังสือคำถามให้ครบก่อน!
+      </p>
+      <button id="btnCloseAngryOwl" class="btn-3d w-full py-3 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 text-white font-extrabold border-b-4 border-rose-800 shadow-lg">
+        ◀ ย้อนกลับไปตอบคำถามให้ครบ
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== GAME OVER MODAL ==================== -->
+  <div id="gameOverModal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+    <div class="w-full max-w-md bg-gradient-to-b from-purple-100 to-rose-100 border-4 border-rose-400 rounded-3xl p-6 text-center shadow-2xl animate-pop">
+      <div class="text-6xl mb-2">😭💔</div>
+      <h2 class="text-3xl font-extrabold text-rose-700 mb-1">พลังชีวิตหมดแล้ว!</h2>
+      <p class="text-sm font-semibold text-purple-900 mb-5">
+        น้อง MEEDEE หมดแรงแล้ว ลองใหม่อีกครั้งนะ สู้ๆ!
+      </p>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <button id="btnGameOverRetry" class="btn-3d flex-1 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-500 text-white font-extrabold border-b-4 border-purple-900 shadow">
+          🔄 เล่นด่านนี้อีกครั้ง
+        </button>
+        <a href="index.html" class="btn-3d flex-1 py-3 rounded-2xl bg-white text-purple-900 font-bold border-2 border-purple-300 shadow flex items-center justify-center">
+          🏠 หน้าหลัก
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== STAGE CLEAR & TOP 10 LEADERBOARD MODAL ==================== -->
+  <div id="victoryModal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-5 bg-purple-950/80 backdrop-blur-sm overflow-y-auto">
+    <div class="w-full max-w-2xl bg-gradient-to-b from-amber-50 via-white to-purple-50 border-4 border-amber-400 rounded-3xl p-5 sm:p-7 shadow-2xl my-auto animate-pop">
+      <div class="text-center">
+        <div class="inline-block bg-amber-300 text-purple-950 text-xs font-extrabold px-4 py-1 rounded-full mb-2 shadow-sm">
+          🎉 ภารกิจสำเร็จ! STAGE CLEAR
+        </div>
+        <h2 id="victoryStageTitle" class="text-2xl sm:text-3xl font-extrabold text-purple-950">
+          ยินดีด้วย!
+        </h2>
+        <p id="victoryPlayerSubtitle" class="text-sm font-bold text-purple-700 mt-0.5"></p>
+      </div>
+
+      <!-- Score & Time Summary Cards -->
+      <div class="grid grid-cols-2 gap-3 sm:gap-4 mt-4">
+        <div class="bg-amber-100/90 border-2 border-amber-400 rounded-2xl p-3.5 text-center shadow-inner">
+          <div class="text-xs font-bold text-amber-800">คะแนนดาวที่ได้</div>
+          <div class="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-1 flex items-center justify-center gap-1">
+            <span>⭐</span>
+            <span id="victoryStars">0</span>
+          </div>
+        </div>
+        <div class="bg-sky-100/90 border-2 border-sky-400 rounded-2xl p-3.5 text-center shadow-inner">
+          <div class="text-xs font-bold text-sky-800">เวลาที่ใช้</div>
+          <div class="text-2xl sm:text-3xl font-extrabold text-sky-700 mt-1 flex items-center justify-center gap-1">
+            <span>⏱️</span>
+            <span id="victoryTime">00:00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top 10 Leaderboard -->
+      <div class="mt-5 bg-white border-2 border-purple-200 rounded-2xl p-4 shadow-sm">
+        <div class="flex items-center justify-between mb-2.5">
+          <h3 class="text-sm sm:text-base font-extrabold text-purple-950 flex items-center gap-1.5">
+            🏆 อันดับผู้เล่นสูงสุด (Top 10)
+          </h3>
+          <span class="text-xs font-bold text-purple-600">เรียงตามคะแนนสูงสุด</span>
+        </div>
+        <div class="max-h-56 overflow-y-auto pr-1">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="border-b-2 border-purple-100 text-purple-700">
+                <th class="py-1.5 px-2 w-12">อันดับ</th>
+                <th class="py-1.5 px-2">ชื่อผู้เล่น</th>
+                <th class="py-1.5 px-2 text-right">คะแนน</th>
+                <th class="py-1.5 px-2 text-right">เวลา</th>
+              </tr>
+            </thead>
+            <tbody id="victoryLeaderboardBody" class="divide-y divide-purple-50 font-semibold"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="mt-5 flex flex-col sm:flex-row gap-3">
+        <button id="btnVictoryNextStage" class="btn-3d flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold border-b-4 border-emerald-800 shadow">
+          ด่านถัดไป ➡️
+        </button>
+        <a href="index.html" class="btn-3d flex-1 py-3 px-5 rounded-2xl bg-purple-700 text-white font-extrabold border-b-4 border-purple-950 shadow text-center">
+          🏠 กลับหน้าหลัก
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts (แยกตามโมดูล) -->
+  <script src="js/sound.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/meedee.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
